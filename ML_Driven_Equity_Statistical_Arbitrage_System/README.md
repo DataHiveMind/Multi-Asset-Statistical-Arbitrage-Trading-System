@@ -485,8 +485,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 📞 Contact & Support
 
 ### Professional Inquiries
-- **LinkedIn**: [Professional Profile](https://linkedin.com/in/yourprofile)
-- **Email**: trading.systems@example.com
+- **LinkedIn**: [Professional Profile](www.linkedin.com/in/kenneth-legare)
+- **Email**: kennethlegare5@gmail.com
 - **Research Publications**: [Google Scholar](https://scholar.google.com/yourprofile)
 
 ### Technical Support
