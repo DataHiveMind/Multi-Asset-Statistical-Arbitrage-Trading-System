@@ -1,0 +1,129 @@
+# Kubernetes deployment configuration
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: quant-system-api
+  labels:
+    app: quant-system
+    tier: api
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: quant-system
+      tier: api
+  template:
+    metadata:
+      labels:
+        app: quant-system
+        tier: api
+    spec:
+      containers:
+      - name: api
+        image: quant-system:latest
+        ports:
+        - containerPort: 8000
+        env:
+        - name: ENVIRONMENT
+          value: "production"
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: quant-secrets
+              key: database-url
+        - name: REDIS_URL
+          valueFrom:
+            secretKeyRef:
+              name: quant-secrets
+              key: redis-url
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: quant-system-service
+spec:
+  selector:
+    app: quant-system
+    tier: api
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 8000
+  type: LoadBalancer
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: quant-system-worker
+  labels:
+    app: quant-system
+    tier: worker
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: quant-system
+      tier: worker
+  template:
+    metadata:
+      labels:
+        app: quant-system
+        tier: worker
+    spec:
+      containers:
+      - name: worker
+        image: quant-system:latest
+        command: ["celery", "worker", "-A", "src.python.tasks", "--loglevel=info"]
+        env:
+        - name: ENVIRONMENT
+          value: "production"
+        - name: CELERY_BROKER_URL
+          valueFrom:
+            secretKeyRef:
+              name: quant-secrets
+              key: celery-broker-url
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: daily-model-retrain
+spec:
+  schedule: "0 2 * * *"  # Daily at 2 AM
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: retrain
+            image: quant-system:latest
+            command: ["python", "-m", "src.python.mlops.daily_retrain"]
+            env:
+            - name: ENVIRONMENT
+              value: "production"
+          restartPolicy: OnFailure
